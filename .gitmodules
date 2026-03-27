@@ -1,0 +1,6 @@
+[submodule "lib/typed-uniswap-v4"]
+	path = lib/typed-uniswap-v4
+	url = https://github.com/wvs-finance/typed-uniswap-v4
+[submodule "lib/bunni-v2"]
+	path = lib/bunni-v2
+	url = https://github.com/BunniApp/bunni-v2
