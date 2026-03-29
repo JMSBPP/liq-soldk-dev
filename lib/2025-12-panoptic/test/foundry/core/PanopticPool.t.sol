@@ -4040,8 +4040,16 @@ contract PanopticPoolTest is PositionUtils {
         uint256 positionSizeSeed
     ) public {
         _initPool(x);
+	// note:
 
-        (int24 width0, int24 strike0) = PositionUtils.getITMSW(
+
+	//   --| ---------------|-----------------|
+	//     il               ik                iu
+                                |
+	//     |--width---------|-----------------|
+	            |           v	
+                    v
+	  (int24 width0, int24 strike0) = PositionUtils.getITMSW(
             widthSeeds[0],
             strikeSeeds[0],
             uint24(tickSpacing),

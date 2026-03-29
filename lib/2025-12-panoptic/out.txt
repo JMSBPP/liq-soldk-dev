@@ -1,7 +1,8 @@
 No files changed, compilation skipped
 
 Ran 1 test for test/foundry/core/PanopticPool.t.sol:PanopticPoolTest
-[PASS] test_Success_mintOptions_ITMShortPutShortCall_Swap(uint256,uint256[2],int256[2],uint256) (runs: 30, μ: 16657187, ~: 16671373)
+[PASS] test_Success_mintOptions_ITMShortPutShortCall_Swap(
+     uint256,uint256[2],int256[2],uint256) (runs: 30, μ: 16657187, ~: 16671373)
 Traces:
   [18656684] PanopticPoolTest::test_Success_mintOptions_ITMShortPutShortCall_Swap(15790 [1.579e4], [16709 [1.67e4], 149997214084966997727330242082538205943 [1.499e38]], [13004 [1.3e4], -41446531673892822312 [-4.144e19]], 32768 [3.276e4])
     ├─ [0] console::log("Bound result", 2) [staticcall]
