@@ -1,389 +1,165 @@
-```
-**measurement layer**. It tells you "how much IL does this position have right now."
-
-LeftRightILX96.sol
-  │
-  ├─ rightIlXLiq()  →  Eqn 2: UIL^R per liquidity (call-replicable side)
-  ├─ leftIlXLiq()   →  Eqn 3: UIL^L per liquidity (put-replicable side)
-  │
-  ├─ leftRightIlXLiqSigned()   →  LeftRightSigned{right=UIL^R, left=UIL^L}
-  └─ leftRightIlXLiqUnsigned() →  LeftRightUnsigned{right=|UIL^R|, left=|UIL^L|}
-                                    (negated, since IL ≤ 0)
-```
-
-```
-                        Uniswap V4 Pool
-                             │
-                    ┌────────┼────────┐
-                    │   V4 Hooks      │
-                    │                 │
-                    │  afterSwap()    │  ← price moved, recompute IL
-                    │  afterModifyPosition() │ ← position changed
-                    │                 │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │   IL Oracle     │
-                    │                 │
-                    │  Per-position:  │
-                    │  positionKey →  │
-                    │    LeftRightSigned{ │
-                    │      right = UIL^R, │   ← rightIlXLiq(currentPrice, tickLower, tickUpper)
-                    │      left  = UIL^L  │   ← leftIlXLiq(currentPrice, tickLower, tickUpper)
-                    │    }            │
-                    │                 │
-                    │  + entry snapshot │  ← IL at position creation
-                    │  + Δ IL          │  ← current - entry = realized IL change
-                    │                 │
-                    └────────┬────────┘
-                             │
-                      threshold / trigger
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  Hedge Builder  │
-                    │                 │
-                    │  IL Oracle state │
-                    │       │          │
-                    │       ▼          │
-                    │  Prop 3.5 discretization:  │
-                    │  UIL^R → buy calls at K_i ∈ [P_l, P_u]  │
-                    │  UIL^L → buy puts at M_j ∈ [S_l, S_u]   │
-                    │       │          │
-                    │       ▼          │
-                    │  TokenId construction  │
-                    │  (isLong=1, strikes, widths, ratios)  │
-                    │                 │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  PanopticPool   │
-                    │  .mintOptions() │
-                    └─────────────────┘
-```
-
 
 
 ```
-E[UIL^R] = -½ ∫_{P_l}^{P_u} K^{-3/2} C(K) dK --> E[UIL^R] ≈ -0.5 Σᵢ Kᵢ^{-3/2} C(Kᵢ) ΔKᵢ
-```
-      token0    token1
-(rightIlXLiq,leftIlXLiq ) -> (-½ ∫_{P_l}^{P_u} K^{-3/2} C(K) dK, -½ ∫_{P_l}^{P_u} K^{-3/2} P(K) dK )
+MeasurementLayer{
 
-```
-Contribution of strike Kᵢ to total |UIL^R|:
+	Pool { 
+		IVolatilityOracle : -> AlgebraVolatilityLens.sol
+		
+		Position {
+		     LeftRightSigned : leftRightIlXLiq -> LeftRightILX96.sol {
+                    (token0)    (token1)
+                (rightIlXLiq,leftIlXLiq ) -> (
+				                               -½ ∫_{P_l}^{P_u} K^{-3/2} C(K) dK, 
+											   -½ ∫_{P_l}^{P_u} K^{-3/2} P(K) dK
+											   )
+				 
+			 }
 
-  fraction_i = wᵢ / Σⱼ wⱼ
+		}
+	}
 
-  where wᵢ = Kᵢ^{-3/2} · ΔKᵢ
-```
 
-In tick space, `Kᵢ = 1.0001^(tickᵢ)`, so:
+								 |
+							`TokenId` (uint256)` 
+							     |
+                         `TokenId.sol:17-46`:
 
-```
-  wᵢ = 1.0001^(-3·tickᵢ/2) · ΔK(tickᵢ)
+       /              /         |        \            \                 \        \
 
-  where ΔK(tickᵢ) = 1.0001^(tickᵢ + ΔtickSpacing/2) - 1.0001^(tickᵢ - ΔtickSpacing/2)
-```
+  asset(1)  optionRatio(7)  isLong(1)  tokenType(1)  riskPartner(2)  strike(24)  width(12)
 
-## optionRatio = Normalized Weight
+   |                |               |              |              |           |             |
+   |				|			    |              |              |           |             |
+ 	            (CONTRACT                         LEGS
+			      SIZE)           (SHORT/LONG) (CALL/PUT)       (MARGIN)      (STRIKE)     (EXPIRY)
+   |
+   |
+   
+  (UNDERLYING) 
 
-`optionRatio` is 7 bits → integer in [1, 127]. It encodes the **relative** weight:
 
-```
-optionRatio_i = round( wᵢ / w_min )
+    --> isLong=0, tokenType=0 (put→token0), strike=2000, width=10, optionRatio=1 <--
 
-where w_min = min(w₁, ..., wₙ)
-```
+  (*) riskPartner × tokenType × isLong → Collateral Strategy
 
-This means:
+  (*) width x strike <->  [tickLower, tickUpper]
 
-```
-optionRatio_i     wᵢ          Kᵢ^{-3/2} · ΔKᵢ
-──────────────  = ──  =  ─────────────────────────
-optionRatio_j     wⱼ          Kⱼ^{-3/2} · ΔKⱼ
-```
-
-For uniform strike spacing (ΔKᵢ = ΔKⱼ = ΔK), this simplifies to:
-
-```
-optionRatio_i     (Kᵢ)^{-3/2}
-──────────────  = ────────────
-optionRatio_j     (Kⱼ)^{-3/2}
-```
-
-**Lower strikes get higher optionRatio** because K^{-3/2} is monotonically decreasing.
-
-## Concrete Example
-
-LP position: ETH/USDC, range [1800, 2200], currentPrice = 2000
-
-```
-Strike grid (4 legs): K₁=1900, K₂=2000, K₃=2100, K₄=2200
-ΔK = 100 (uniform)
-
-Raw weights (K^{-3/2} · ΔK):
-  w₁ = 1900^{-1.5} · 100 = 1.208e-3
-  w₂ = 2000^{-1.5} · 100 = 1.118e-3  
-  w₃ = 2100^{-1.5} · 100 = 1.039e-3
-  w₄ = 2200^{-1.5} · 100 = 0.969e-3
-
-Normalize (divide by w₄ = min):
-  optionRatio₁ = round(1.208/0.969) = round(1.247) = 1   ← or scale up
-  optionRatio₂ = round(1.118/0.969) = round(1.154) = 1
-  optionRatio₃ = round(1.039/0.969) = round(1.072) = 1
-  optionRatio₄ = round(0.969/0.969) = round(1.000) = 1
-```
-
-The weights are very close (ratio only ~1.25x). For wider ranges:
-
-```
-Strike grid: K₁=500, K₂=1000, K₃=1500, K₄=2000
-ΔK = 500
-
-  w₁ = 500^{-1.5} · 500  = 44.7e-3
-  w₂ = 1000^{-1.5} · 500 = 15.8e-3
-  w₃ = 1500^{-1.5} · 500 = 8.6e-3
-  w₄ = 2000^{-1.5} · 500 = 5.6e-3
-
-Normalize:
-  optionRatio₁ = round(44.7/5.6) = 8
-  optionRatio₂ = round(15.8/5.6) = 3
-  optionRatio₃ = round(8.6/5.6)  = 2
-  optionRatio₄ = round(5.6/5.6)  = 1
-```
-
-Now the ratios matter — lower strikes need significantly more contracts.
-
-## The positionSize Absorbs the Magnitude
-
-`optionRatio` handles the **shape** (relative weights). `positionSize` handles the **scale** (how much total hedge). The connection to your oracle:
-
-```
-positionSize = f(totalRightIL, L, Σwᵢ)
-
-Specifically:
-  Total hedge needed = |UIL^R| · L          (from oracle, absolute terms)
+  (*) LeftRightILX96 -> (isLong, tokeType, asset)
+  (*) optionRatio shape (relative weights)
+  (*) positionSize: scale (how much total hedge){
+	     LeftRightIlX96Unsigned * ldf(positionLiquidity, tickRange)
   
-  Each leg i contributes:  optionRatio_i · positionSize · valuePerContract_i
-  
-  Sum must equal total:
-    Σᵢ optionRatio_i · positionSize · valuePerContract_i = |UIL^R| · L
-    
-  Solve:
-    positionSize = (|UIL^R| · L) / Σᵢ (optionRatio_i · valuePerContract_i)
-```
+         invariant :  Σᵢ optionRatio_i · positionSize · valuePerContract_i = |UIL^R| · L
+  }
+}
 
-## Summary: The Type Flow
 
-```
-LeftRightILX96                          TokenId Legs
-─────────────                           ────────────
 
-rightIlXLiq() → |UIL^R| ──┐
-  (total IL magnitude)     │
-                           ├──→ positionSize  (SCALE: how much total hedge)
-leftIlXLiq()  → |UIL^L| ──┘
+i = 1.0001^{i/2} --> sqrtPriceX96(i)
 
-    K^{-3/2} · ΔK
-    (Prop 3.5 weight) ────→ optionRatio   (SHAPE: relative weight per strike)
 
-    tickLower, tickUpper
-    (LP range bounds)  ────→ strike grid   (WHERE: which strikes to hedge at)
+K^{-3/2} = (sqrtPrice)^{-3} ---> K^{-3/2} = 1 / K^{3/2} = 1 / (sqrtPrice)^3
+                                                                 
+																 |
+																 |
+													      <------			 
+                                         i ?
 
-                                    │
-                                    ▼
-                              optionRatio encodes HOW MUCH
-                              of the oracle's IL reading
-                              falls on EACH discrete strike
-```
-
-The `LeftRightILX96` gives you the **total** and the **sidedness** (right=calls, left=puts). The `optionRatio` gives you the **distribution** across strikes derived from Prop 3.5's K^{-3/2} kernel. Together they fully specify the hedge.
-
-Neither Bunni nor Panoptic has a direct K^{-3/2} function, but you can build it from existing primitives. Here are the three options, from most to least gas-efficient:
-
-## Option C: Composition via sqrtPrice (Best — No Logarithms)
+--> ON SQRT 196 SPACE
 
 Since `sqrtPriceX96 = K^{1/2} · 2^96`, then `K^{-3/2} = (sqrtPrice)^{-3}`:
 
-```
-K^{-3/2} = 1 / K^{3/2} = 1 / (sqrtPrice)^3
-```
+	K^{-3/2} = 1 / K^{3/2} = 1 / (sqrtPrice)^3
+	// sqrtPriceX96 is already available from TickMath.getSqrtRatioAtTick(tick)
+    // K^{-3/2} in X96 = (2^96)^4 / (sqrtPriceX96)^3
 
-In X96 arithmetic:
+	uint256 sqrtK = uint256(TickMath.getSqrtRatioAtTick(tickI));
 
-```solidity
-// sqrtPriceX96 is already available from TickMath.getSqrtRatioAtTick(tick)
-// K^{-3/2} in X96 = (2^96)^4 / (sqrtPriceX96)^3
+	// sqrtK^3 in X96: (sqrtK * sqrtK / 2^96) * sqrtK / 2^96
+	uint256 sqrtKCubed_X96 = FullMath.mulDiv(
+	FullMath.mulDiv(sqrtK, sqrtK, 1 << 96),  // sqrtK² / 2^96
+		sqrtK,
+		1 << 96                                     // * sqrtK / 2^96
+	);
 
-uint256 sqrtK = uint256(TickMath.getSqrtRatioAtTick(tickI));
+	// K^{-3/2} in X96 = 2^96 / sqrtKCubed_X96
+	uint256 weightX96 = FullMath.mulDiv(1 << 96, 1 << 96, sqrtKCubed_X96);
 
-// sqrtK^3 in X96: (sqrtK * sqrtK / 2^96) * sqrtK / 2^96
-uint256 sqrtKCubed_X96 = FullMath.mulDiv(
-    FullMath.mulDiv(sqrtK, sqrtK, 1 << 96),  // sqrtK² / 2^96
-    sqrtK,
-    1 << 96                                     // * sqrtK / 2^96
-);
+--> ON TICK SPACE
 
-// K^{-3/2} in X96 = 2^96 / sqrtKCubed_X96
-uint256 weightX96 = FullMath.mulDiv(1 << 96, 1 << 96, sqrtKCubed_X96);
-```
-
-This uses **only `FullMath.mulDiv`** which both Panoptic and Bunni already have. No exp/log needed.
-
-## Option A: Solady powWad (Most Readable)
-
-From `lib/solady/src/utils/FixedPointMathLib.sol`:
-
-```solidity
-// K in WAD (1e18 fixed point)
-// powWad computes x^y via exp(ln(x) * y)
-int256 weight = FixedPointMathLib.powWad(int256(K_wad), -1_500_000_000_000_000_000);
-// returns K^{-1.5} in WAD
-```
-
-More gas-expensive (uses ln + exp internally), but dead simple.
-
-## Option B: Bunni's ExpMath (Tick-Native)
 
 From `lib/bunni-v2/src/lib/ExpMath.sol`:
 
-```solidity
-// K = 1.0001^tick, so K^{-3/2} = 1.0001^(-1.5 * tick) = exp(-1.5 * tick * ln(1.0001))
-// ExpMath already has HALF_LN_TICK_BASE_Q96 = 0.5 * ln(1.0001) * 2^96
+	// K = 1.0001^tick, so K^{-3/2} = 1.0001^(-1.5 * tick) = exp(-1.5 * tick * ln(1.0001))
+	// ExpMath already has HALF_LN_TICK_BASE_Q96 = 0.5 * ln(1.0001) * 2^96
 
-// So: -1.5 * tick * ln(1.0001) = -3 * tick * HALF_LN_TICK_BASE_Q96
-int256 exponent = -3 * int256(tickI) * int256(ExpMath.HALF_LN_TICK_BASE_Q96);
-uint256 weightX96 = ExpMath.expQ96(exponent / int256(1 << 96));
-```
+	// So: -1.5 * tick * ln(1.0001) = -3 * tick * HALF_LN_TICK_BASE_Q96
+	int256 exponent = -3 * int256(tickI) * int256(ExpMath.HALF_LN_TICK_BASE_Q96);
+	uint256 weightX96 = ExpMath.expQ96(exponent / int256(1 << 96));
 
-Uses Bunni's optimized exp. Good if you're already in tick space.
 
-## ΔK Computation
 
 For the spacing term `ΔK(tickᵢ)`, again sqrtPrice composition:
 
-```solidity
-// ΔK = K(tick + halfSpacing) - K(tick - halfSpacing)
-// where K(t) = sqrtPrice(t)² / 2^96
+	// ΔK = K(tick + halfSpacing) - K(tick - halfSpacing)
+	// where K(t) = sqrtPrice(t)² / 2^96
 
-int24 halfSpacing = tickSpacing / 2;
-uint160 sqrtUpper = TickMath.getSqrtRatioAtTick(tickI + halfSpacing);
-uint160 sqrtLower = TickMath.getSqrtRatioAtTick(tickI - halfSpacing);
+	int24 halfSpacing = tickSpacing / 2;
+	uint160 sqrtUpper = TickMath.getSqrtRatioAtTick(tickI + halfSpacing);
+	uint160 sqrtLower = TickMath.getSqrtRatioAtTick(tickI - halfSpacing);
 
-// K_upper = sqrtUpper² / 2^96
-uint256 kUpper = FullMath.mulDiv(uint256(sqrtUpper), uint256(sqrtUpper), 1 << 96);
-uint256 kLower = FullMath.mulDiv(uint256(sqrtLower), uint256(sqrtLower), 1 << 96);
+	// K_upper = sqrtUpper² / 2^96
+	uint256 kUpper = FullMath.mulDiv(uint256(sqrtUpper), uint256(sqrtUpper), 1 << 96);
+	uint256 kLower = FullMath.mulDiv(uint256(sqrtLower), uint256(sqrtLower), 1 << 96);
 
-uint256 deltaK = kUpper - kLower;
-```
+	uint256 deltaK = kUpper - kLower;
 
-## Full Weight Function (Option C Path)
 
-```solidity
-function propWeight(int24 tickI, int24 tickSpacing) 
-    internal pure returns (uint256 wX96) 
-{
-    // K^{-3/2} via sqrtPrice composition
-    uint256 sqrtK = uint256(TickMath.getSqrtRatioAtTick(tickI));
-    uint256 sqrtKSq = FullMath.mulDiv(sqrtK, sqrtK, 1 << 96);
-    uint256 sqrtKCubed = FullMath.mulDiv(sqrtKSq, sqrtK, 1 << 96);
-    uint256 kInv32_X96 = FullMath.mulDiv(1 << 96, 1 << 96, sqrtKCubed);
+---> OPTION C
+
+
+	function propWeight(int24 tickI, int24 tickSpacing) 
+		internal pure returns (uint256 wX96) 
+	{
+		// K^{-3/2} via sqrtPrice composition
+		uint256 sqrtK = uint256(TickMath.getSqrtRatioAtTick(tickI));
+		uint256 sqrtKSq = FullMath.mulDiv(sqrtK, sqrtK, 1 << 96);
+		uint256 sqrtKCubed = FullMath.mulDiv(sqrtKSq, sqrtK, 1 << 96);
+		uint256 kInv32_X96 = FullMath.mulDiv(1 << 96, 1 << 96, sqrtKCubed);
     
-    // ΔK
-    int24 half = tickSpacing / 2;
-    uint256 kUp = _tickToK(tickI + half);
-    uint256 kDn = _tickToK(tickI - half);
-    uint256 deltaK = kUp - kDn;
+		// ΔK
+		int24 half = tickSpacing / 2;
+		uint256 kUp = _tickToK(tickI + half);
+		uint256 kDn = _tickToK(tickI - half);
+		uint256 deltaK = kUp - kDn;
     
-    // w_i = K^{-3/2} · ΔK  (in X96)
-    wX96 = FullMath.mulDiv(kInv32_X96, deltaK, 1 << 96);
-}
+		// w_i = K^{-3/2} · ΔK  (in X96)
+		wX96 = FullMath.mulDiv(kInv32_X96, deltaK, 1 << 96);
+	}
 
-function _tickToK(int24 tick) private pure returns (uint256) {
-    uint160 sqrtP = TickMath.getSqrtRatioAtTick(tick);
-    return FullMath.mulDiv(uint256(sqrtP), uint256(sqrtP), 1 << 96);
-}
+	function _tickToK(int24 tick) private pure returns (uint256) {
+		uint160 sqrtP = TickMath.getSqrtRatioAtTick(tick);
+		return FullMath.mulDiv(uint256(sqrtP), uint256(sqrtP), 1 << 96);
+	}
 ```
 
-## Bottom Line
 
-**Nothing in either codebase computes K^{-3/2} directly.** But Option C gives you the answer using only `FullMath.mulDiv` + `TickMath.getSqrtRatioAtTick` — both already available in Panoptic and Uniswap V4 core. The key identity is:
 
 ```
-K^{-3/2} = 1 / (sqrtPriceX96)³    [scaled by 2^(96*4)]
-```
+ `getAmountsForLiquidity(tick) -> a_x \propto L · √P(tick) `
+ 
+ --> getPositionSize(tick) -> a_x \propto L · l(√P, tick) = f(K^{-3/2})
+                                                 |
+	                              LibGeometricDistribution.sol
 
-Three multiplications, one division. No logarithms, no exponentials.
+                                      `L / (√P)³`:
 
-
-Yes — you're onto something important. Let me work through the dimensional analysis precisely.
-
-## The √P Dimension of Liquidity
-
-In Uniswap, liquidity L is defined so that:
-
-```
-token1 reserves:  y = L · √P          (L "lives in" the √P dimension)
-token0 reserves:  x = L / √P = L · (√P)^{-1}
-```
-
-When you query `getAmountsForLiquidity` at tick i, the **value** you get back is proportional to `L · √P`.
-
-## The Prop 3.5 Weight in √P Space
-
-The integral is in K-space:
-
-```
-E[UIL^R] = -½ ∫ K^{-3/2} · C(K) · dK
-```
-
-Change variables to √P (Uniswap's native coordinate), where K = (√P)²:
-
-```
-dK = 2√P · d(√P)
-
-K^{-3/2} · dK = (√P)^{-3} · 2√P · d(√P)
-               = 2 · (√P)^{-2} · d(√P)
-               = 2/P · d(√P)
-```
-
-So in √P-space:
-
-```
-E[UIL^R] = -∫ (√P)^{-2} · C((√P)²) · d(√P)
-```
-
-**The weight simplifies from K^{-3/2} to just (√P)^{-2} = 1/P** in the native Uniswap coordinate.
-
-## Your Observation: The Powers of √P
-
-You're right that there's a power-of-√P relationship. Here's the precise chain:
-
-```
-K^{-3/2}  =  ((√P)²)^{-3/2}  =  (√P)^{-3}     ← three powers of √P
-
-Regular liquidity output:  l(i) = L · (√P)^1     ← one power of √P
-
-So:  K^{-3/2} = (√P)^{-3} = 1 / (l(i)/L)³
-```
-
-The weight is the **cube of the inverse** of the normalized liquidity-value dimension. Not `L · (√P)³` but rather `L / (√P)³`:
-
-```
 weighted_contribution_i = L · (√P_i)^{-3} · ΔK_i
                         = L / (√P_i)³ · ΔK_i
-```
-
-**Lower √P (cheaper ticks) get MORE weight.** This is correct — lower strikes need more hedge contracts because the IL is more sensitive there (K^{-3/2} is decreasing).
-
-## The Practical Payoff: No Special Math Needed
 
 This is the real insight. Since `sqrtPriceX96` is already the native Uniswap representation:
 
-```solidity
 // K^{-3/2} in X96 = 1 / (sqrtPriceX96)³
 // You already HAVE sqrtPriceX96 from TickMath — no exp/log needed
 
@@ -908,7 +684,7 @@ PositionSize {
 
 NumberOfContracts -> OptionRatio 
 
-- why intermedaaite swp is needed at all ?
+- why intermediate swap is needed at all ?
 - How to human write the test ?
 
 
@@ -934,191 +710,15 @@ twapVolatility -> expiry -> width
 ===> We are doing a type driven fucntional programming fully modular VolatilityOracle
 
 
-| # | What | From | Why |
-|---|------|------|-----|
-| **P0** | `VolatilityEngine` library | **Tempest** | Production-grade RV (tick delta EWMA, packed ring buffer, zero deps). Direct import. |
-| **P0** | `nonReentrantRebalance` guard | **ReBalancer** | Prevents infinite loop when hedge → swap → re-enters hook. Critical safety. |
-| **P1** | `Volatility.sol` (Lambert fee-growth IV) | **Valorem** | Forward-looking sigma from `feeGrowthGlobal` deltas. Adapt V3→V4. |
-| **P1** | Threshold-based rehedge trigger | **ReBalancer** | Don't rehedge every swap — only when VRP or delta exceeds threshold. |
-| **P2** | Alcarraz IV oracle + Welford RV | **Risk-neutral-hook** | Second IV source + unbiased variance. Fix `mu_pool` bug first. |
-| **P3** | Algebra sigmoid fee formula | **Algebra** (docs) | Reference for hedge cost estimation. |
-| **P4** | ZK-proven RV concept | **VolatilityHook-UniV4** | Future work — manipulation-resistant vol. Not usable today (security holes). |
-
-
-Found it. Here's the critical insight:
-
-## Algebra's Vol Oracle — Key Discovery
-
-**It's NOT standard realized volatility.** Algebra computes `(tick(t) - TWAP(t))²` — a *tracking error variance* (deviation from 24h moving average), not log-return variance. This is mathematically distinct from the sigma that Black-Scholes / Prop 3.5 position sizing needs.
-
-### The data flow:
-```
-Pool.swap() → beforeSwap hook → _writeTimepointAndUpdateFee()
-  → 65,536-entry ring buffer (timepoints)
-  → getAverageVolatility() over 24h window
-  → normalize by /15
-  → dual-sigmoid: baseFee + α₁/(1+e^((β₁-x)/γ₁)) + α₂/(1+e^((β₂-x)/γ₂))
-```
-
-### Verdict for our project:
-
-| Aspect | Algebra | Tempest |
-|--------|---------|---------|
-| **What it measures** | Tracking error from TWAP | Log-return variance (true RV) |
-| **What BSM/Prop 3.5 needs** | Not directly | Yes, directly |
-| **Conversion needed** | `sigma ≈ sqrt(12 * V_avg * SECONDS_PER_YEAR / WINDOW)` (approximate) | None — already annualized sigma |
-| **Gas efficiency** | 65K-entry ring buffer | Packed ring buffer (4 obs/slot) |
-| **Battle-tested** | Yes (Camelot, THENA, QuickSwap) | Less, but production-grade tests |
-
-
-### Algebra Volatility Oracle
-```
-lib/algebra-plugins/src/plugin/stub/contracts/
-```
-
-| # | File | What it does | Lines to focus on |
-|---|------|-------------|-------------------|
-| **1** | `libraries/VolatilityOracle.sol` | The core — ring buffer of timepoints, tick accumulation, `_volatilityOnRange()` that computes `(tick - TWAP)²` | `_volatilityOnRange()` (~line 273), `write()`, `getAverageVolatility()` |
-| **2** | `libraries/AdaptiveFee.sol` | Vol → fee mapping via dual sigmoid: `baseFee + α₁/(1+e^((β₁-x)/γ₁)) + α₂/(1+e^((β₂-x)/γ₂))` | `getFee()` function |
-| **3** | `base/AlgebraFeeConfiguration.sol` | The fee config struct (alpha1, alpha2, beta1, beta2, gamma1, gamma2, baseFee) | Struct definition |
-| **4** | `AlgebraBasePluginV1.sol` | The hook glue — `beforeSwap` → `_writeTimepointAndUpdateFee()` | Lines ~256 (beforeSwap), ~297 (_writeTimepointAndUpdateFee) |
-| **5** | `interfaces/plugins/IVolatilityOracle.sol` | Public API surface | `getTimepoints()`, `prepareForPool()` |
-
-- `test/VolatilityOracleTest.sol` — unit tests showing expected vol values
-- `test/echidna/VolatilityOracleEchidnaTest.sol` — invariant fuzzing
-- `test/SimulationAdaptiveFee.sol` — fee curve simulation harness
-
-
-
-
-
-
-
-This is a really clean design. Let me crystallize what you're describing:
-
-## The Insight
-
-Algebra pools with adaptive fees are **free volatility oracles** that already exist in production. Instead of building vol infrastructure from scratch, we **consume** their fee as a vol signal and invert it.
-
-## First API: `VolatilityLens` (Pure Static Call)
-
-```
-VolatilityLens.query(tokenA, tokenB)
-  │
-  ├─ 1. DISCOVER: Find Algebra pools for pair via AlgebraFactory
-  │     → staticcall factory.poolByPair(tokenA, tokenB)
-  │
-  ├─ 2. READ FEE: Get current adaptive fee
-  │     → staticcall pool.fee()  // this IS the encoded vol
-  │
-  ├─ 3. READ CONFIG: Get sigmoid params
-  │     → staticcall plugin.feeConfig()  // (alpha1, beta1, gamma1, alpha2, beta2, gamma2, baseFee)
-  │
-  ├─ 4. INVERT: fee → sigma
-  │     → pure math: σ = inverseSigmoid(fee, config)
-  │
-  ├─ 5. SCORE RELIABILITY:
-  │     → staticcall pool.liquidity()           // depth
-  │     → staticcall pool.totalFeeGrowth*()     // volume proxy
-  │     → staticcall plugin.getTimepoints()     // oracle age / buffer fill
-  │     → staticcall pool.tickSpacing()         // granularity
-  │     → pure math: score = f(liquidity, volume, age, fill)
-  │
-  └─ returns OracleView {
-       sigma,          // annualized vol (inverted from fee)
-       rawFee,         // the adaptive fee in bps
-       qualityScore,   // 0-100, how trustworthy is this reading
-       poolAddress,    // which Algebra pool
-       lastUpdate,     // staleness
-       liquidity       // depth backing this reading
-     }
-```
-
-**Everything is `view`/`pure`** — zero gas for the LP to query. The LP gets:
-- **sigma** to feed into IL estimation (Prop 3.5)
-- **qualityScore** to decide if this oracle is reliable enough to hedge against
-- A basis for "should I enter this market and at what range?"
-
-## Quality Score Components
-
-| Factor | What it measures | Why it matters |
-|--------|-----------------|----------------|
-| `liquidity` | Pool depth | Thin pools → noisy fee → unreliable vol |
-| `feeGrowthGlobal` | Cumulative volume | Low volume → fee rarely updates → stale vol |
-| Buffer fill level | Oracle age | New pool with <24h of data → insufficient history |
-| `lastUpdate` delta | Staleness | Fee not updated recently → vol reading is old |
-| Tick spacing | Price granularity | Wider spacing → coarser vol estimate |
-
-## Higher Abstraction: Single Token Input
-
-```
-VolatilityLens.query(token)
-  │
-  ├─ Find ALL Algebra pools containing this token
-  ├─ Query each → (sigma_i, score_i)
-  └─ Return weighted average: σ = Σ(score_i · sigma_i) / Σ(score_i)
-```
-
-This gives a **market-implied vol for the asset** across all available pools — like a mini vol surface.
-
-
-Now I have the full picture. Here's what Algebra exposes directly via static calls:
-
-## Algebra's Read API for Volatility
-
-### Direct reads (all `view` / `external`):
-
-| Method | Returns | What it gives you |
-|--------|---------|-------------------|
-| **`getSingleTimepoint(secondsAgo)`** | `(tickCumulative, volatilityCumulative)` | Raw cumulative accumulators at any past timestamp. Diff two of these to get vol over any custom window. |
-| **`getTimepoints(secondsAgos[])`** | `(tickCumulatives[], volatilityCumulatives[])` | Batch query — get accumulators at multiple past timestamps in one call. Build a vol term structure. |
-| **`getCurrentFee()`** | `uint16 fee` | The current adaptive fee (= sigmoid(avgVolatility)). The shortcut — fee IS the vol signal. |
-| **`feeConfig()`** | `(alpha1, alpha2, beta1, beta2, gamma1, gamma2, baseFee)` | The sigmoid params — needed to invert fee → sigma. |
-| **`timepointIndex()`** | `uint16` | Index of latest observation — tells you buffer freshness. |
-| **`lastTimepointTimestamp()`** | `uint32` | When the oracle was last updated — staleness check. |
-| **`timepoints(index)`** | `(initialized, blockTimestamp, tickCumulative, volatilityCumulative, tick, averageTick, windowStartIndex)` | Raw timepoint — gives you the **tick**, **averageTick** (TWAP), and all accumulators at that index. |
-| **`isInitialized()`** | `bool` | Oracle health check. |
-
-### Lens contract (`AlgebraOracleV1TWAP`):
-
-| Method | Returns | What it gives you |
-|--------|---------|-------------------|
-| **`getAverageTick(pool, period)`** | `int24` | TWAP tick over any period — price oracle. |
-| **`latestTimestamp(pool)`** | `uint32` | Staleness. |
-| **`oldestTimestamp(pool)`** | `uint32` | How far back the oracle goes — oracle depth. |
-
-### What this means for the VolatilityLens
-
-You don't need to invert the sigmoid at all if you use the raw accumulators:
-
-```solidity
-// Get vol over ANY custom window — e.g., 1h, 4h, 24h
-(int56 tickCum0, uint88 volCum0) = plugin.getSingleTimepoint(3600);  // 1h ago
-(int56 tickCum1, uint88 volCum1) = plugin.getSingleTimepoint(0);     // now
-
-// Raw volatility over the window (in Algebra's tracking-error units)
-uint88 rawVol = volCum1 - volCum0;
-
-// TWAP tick over the window
-int24 twapTick = int24((tickCum1 - tickCum0) / 3600);
-```
-
-Or build a **vol term structure** in a single batch call:
-
-```solidity
-uint32[] memory windows = new uint32[](4);
-windows[0] = 0;       // now
-windows[1] = 3600;    // 1h
-windows[2] = 14400;   // 4h  
-windows[3] = 86400;   // 24h
-
-(int56[] memory ticks, uint88[] memory vols) = plugin.getTimepoints(windows);
-// vols[0]-vols[1] = 1h vol
-// vols[0]-vols[2] = 4h vol
-// vols[0]-vols[3] = 24h vol
-```
-
-So the API is richer than just "read the fee." You get raw accumulators to compute vol at any granularity, plus the pre-computed fee as a convenience. The `VolatilityLens` can offer both: the quick `getCurrentFee()` read and a proper `getVolatility(window)` from the raw accumulators.
+| #      | What                                     | From                     | Why                                                                                  |
+|--------|------------------------------------------|--------------------------|--------------------------------------------------------------------------------------|
+| **P0** | `VolatilityEngine` library               | **Tempest**              | Production-grade RV (tick delta EWMA, packed ring buffer, zero deps). Direct import. |
+| **P0** | `nonReentrantRebalance` guard            | **ReBalancer**           | Prevents infinite loop when hedge → swap → re-enters hook. Critical safety.          |
+| **P1** | `Volatility.sol` (Lambert fee-growth IV) | **Valorem**              | Forward-looking sigma from `feeGrowthGlobal` deltas. Adapt V3→V4.                    |
+| **P1** | Threshold-based rehedge trigger          | **ReBalancer**           | Don't rehedge every swap — only when VRP or delta exceeds threshold.                 |
+| **P2** | Alcarraz IV oracle + Welford RV          | **Risk-neutral-hook**    | Second IV source + unbiased variance. Fix `mu_pool` bug first.                       |
+| **P3** | Algebra sigmoid fee formula              | **Algebra** (docs)       | Reference for hedge cost estimation.                                                 |
+|
 
 lib/algebra-plugins/src/plugin/stub/contracts/
 │
@@ -1184,7 +784,7 @@ lib/algebra-plugins/src/plugin/stub/contracts/
 
 --> Analysis
 
-
+3
 
 --- (OURS) --> An LP then is provided with THREE behavioral identical interfaces to capitalize his view:
 

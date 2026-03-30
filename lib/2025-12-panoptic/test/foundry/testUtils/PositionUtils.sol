@@ -575,7 +575,7 @@ contract PositionUtils is Test {
 
         uint128 liquidity = getLiquidityForAmountAtRatio(
             sqrtRatioX96,
-            sqrtRatioAX96,
+	    sqrtRatioAX96,
             sqrtRatioBX96,
             token,
             amountToken

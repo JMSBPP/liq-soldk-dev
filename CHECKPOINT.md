@@ -1,0 +1,1 @@
+- [CHAPTER 3](https://archive.org/details/macromarketscrea0000shil/page/30/mode/2up)
