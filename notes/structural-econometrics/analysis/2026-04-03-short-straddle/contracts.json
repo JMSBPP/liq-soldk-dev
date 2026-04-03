@@ -2,7 +2,9 @@
   "bunni_v2": {
     "arbitrum": {
       "chain_id": 42161,
-      "hub": "0x000000000049c7bcbca294e63567b4d21eb765f1",
+      "hub": "0x000000dceb71f3107909b1b748424349bfde5493",
+      "hub_broadcast": "0x000000000049c7bcbca294e63567b4d21eb765f1",
+      "hub_note": "hub is the Dune-decoded address; hub_broadcast is from local broadcast files (may be a proxy or different deployment)",
       "hub_logic": "0x7744ba67842771d90c6173e28bd086f7955e95b0",
       "hook_logic": "0x59f17b5b56a3e156becfdcf1f12298fc88e165b7",
       "rebalance_logic": "0x17a78c115c234bb641ebfe2166e86bbc7d06e9cf",
