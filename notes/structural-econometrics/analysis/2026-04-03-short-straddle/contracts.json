@@ -1,0 +1,40 @@
+{
+  "bunni_v2": {
+    "arbitrum": {
+      "chain_id": 42161,
+      "hub": "0x000000000049c7bcbca294e63567b4d21eb765f1",
+      "hub_logic": "0x7744ba67842771d90c6173e28bd086f7955e95b0",
+      "hook_logic": "0x59f17b5b56a3e156becfdcf1f12298fc88e165b7",
+      "rebalance_logic": "0x17a78c115c234bb641ebfe2166e86bbc7d06e9cf",
+      "ldf": {
+        "geometric": "0x00000000cf810fbcdd50699c7934e6a3ba76c6f7",
+        "double_geometric": "0x000000008f092b3a2ed144a4b9a6e17c4c90d8be",
+        "carpeted_geometric": "0x00000000db3bb322a6c5866c3f0290a4b3ec858a",
+        "carpeted_double_geometric": "0x00000000f5cf92bf887e22e1800fa15a2375b4b9",
+        "uniform": "0x00000000ca63db33b83c0048de8b29e0ff3eb085",
+        "buy_the_dip_geometric": "0x000000005f6b3b42918693fe6cd629f95feee72c"
+      },
+      "note": "LDF addresses are CREATE addresses from DeployLDFs broadcast, order matches deploy script: geometric, double_geometric, carpeted_geometric, carpeted_double_geometric, uniform, buy_the_dip_geometric"
+    }
+  },
+  "algebra": {
+    "arbitrum": {
+      "chain_id": 42161,
+      "camelot_v3": {
+        "weth_usdc": "0xb1026b8e7276e7ac75410f1fcbbe21796e8f7526",
+        "arb_weth": "0xe51635ae8136abac44906a8f230c2d235e9c195f",
+        "wsteth_weth": "0xdeb89de4bb6ecf5bfed581eb049308b52d9b2da7"
+      }
+    }
+  },
+  "event_signatures": {
+    "bunni_deposit": "Deposit(address,address,bytes32,uint256,uint256,uint256)",
+    "bunni_withdraw": "Withdraw(address,address,bytes32,uint256,uint256,uint256)",
+    "bunni_new": "NewBunni(address,bytes32)",
+    "bunni_queue_withdraw": "QueueWithdraw(address,bytes32,uint256)",
+    "algebra_mint": "Mint(address,address,int24,int24,uint128,uint256,uint256)",
+    "algebra_burn": "Burn(address,int24,int24,uint128,uint256,uint256)",
+    "algebra_collect": "Collect(address,int24,int24,uint128,uint128)",
+    "algebra_swap": "Swap(address,address,int256,int256,uint160,uint128,int24)"
+  }
+}
