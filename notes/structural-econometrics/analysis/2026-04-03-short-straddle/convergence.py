@@ -38,7 +38,7 @@ class ConvergenceResult:
     algebra_n: int
 
 
-def test_convergence(
+def run_convergence_test(
     bunni_vol_spreads: FloatArray,
     algebra_vol_spreads: FloatArray,
 ) -> ConvergenceResult:
