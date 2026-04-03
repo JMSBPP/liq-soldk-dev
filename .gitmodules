@@ -37,3 +37,6 @@
 [submodule "lib/angstrom"]
 	path = lib/angstrom
 	url = https://github.com/SorellaLabs/angstrom
+[submodule "lib/solidity-trigonometry"]
+	path = lib/solidity-trigonometry
+	url = https://github.com/mds1/solidity-trigonometry

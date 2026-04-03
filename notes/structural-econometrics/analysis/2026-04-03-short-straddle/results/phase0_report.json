@@ -1,0 +1,32 @@
+{
+  "chain": "arbitrum",
+  "chain_id": 42161,
+  "total_pools": 32,
+  "ldf_resolution_method": "dune_partial_needs_rpc",
+  "ldf_addresses_on_arbitrum": {
+    "0x00000000765f7e6236e75b9b9a5118557c18e0fe": {"pool_count": 14, "ldf_type_codes": [0, 2]},
+    "0x0000007014931f1ecd91ed2d0f461cc924db21ed": {"pool_count": 7, "ldf_type_codes": [1, 2]},
+    "0x0000003ce2eff799b2624274f2535199ca101e8d": {"pool_count": 5, "ldf_type_codes": [0]},
+    "0x000000cbf474e46bcb1645269fb94f28d5335aa1": {"pool_count": 2, "ldf_type_codes": [0]},
+    "0x00000000c2786a29f2669fae8d0d4caf7776aea5": {"pool_count": 2, "ldf_type_codes": [0, 2]},
+    "0x00000000e1a2e630cd50f94aec05a2ce6caf8b47": {"pool_count": 1, "ldf_type_codes": [0]},
+    "0x00000000b66022c7e4ff478ecb16600ba8a1e37a": {"pool_count": 1, "ldf_type_codes": [2]},
+    "0x000000003691653855719a5722eb10f6d9636936": {"pool_count": 1, "ldf_type_codes": [2]}
+  },
+  "note": "LDF addresses are Arbitrum-specific, NOT the same as Ethereum mainnet. Need RPC bytecode comparison to identify which are GeometricDistribution.",
+  "top_pools_by_lifecycle": [
+    {"pool_id": "0x5282...", "pair": "USDC/USDT", "depositors_with_withdrawals": 39, "total_deposits": 74, "total_withdrawals": 51},
+    {"pool_id": "0xb626...", "pair": "USDC/USDT (Flagship)", "depositors_with_withdrawals": 34, "total_deposits": 64, "total_withdrawals": 56},
+    {"pool_id": "0x16e2...", "pair": "USDC/DAI", "depositors_with_withdrawals": 27, "total_deposits": 44, "total_withdrawals": 34},
+    {"pool_id": "0xc301...", "pair": "ETH/BUNNI", "depositors_with_withdrawals": 19, "total_deposits": 38, "total_withdrawals": 20},
+    {"pool_id": "0xcf3e...", "pair": "ETH/wstETH", "depositors_with_withdrawals": 18, "total_deposits": 28, "total_withdrawals": 21}
+  ],
+  "new_query_ids": {
+    "ldf_resolution": 6946427,
+    "completed_lifecycles": 6946428,
+    "ldf_json_extract": 6946430,
+    "ldf_lifecycle_combined": 6946432
+  },
+  "go_no_go": "NEEDS_RPC",
+  "reason": "Lifecycle data exceeds GO criteria (5 pools with 5+ completed lifecycles, up to 39). But cannot confirm GeometricDistribution without RPC bytecode comparison on the 8 Arbitrum LDF addresses."
+}
