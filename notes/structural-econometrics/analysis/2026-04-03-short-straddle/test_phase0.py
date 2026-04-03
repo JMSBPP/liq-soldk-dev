@@ -9,6 +9,7 @@ from phase0_feasibility import (
     classify_pools,
     PoolRecord,
 )
+from phase0_fee_validation import compute_share_fee_income, FeeIncome
 
 
 def test_match_ldf_type_geometric() -> None:
@@ -50,3 +51,29 @@ def test_classify_pools_filters_geometric() -> None:
     result = classify_pools(pools, target_ldf="geometric")
     assert len(result) == 1
     assert result[0].pool_id == "0x111"
+
+
+def test_compute_share_fee_income_simple() -> None:
+    """Fee income = share_fraction * total_pool_fees * (1 - curator_rate)."""
+    result = compute_share_fee_income(
+        shares_held=100,
+        total_shares=1000,
+        pool_fee_revenue_token0=500.0,
+        pool_fee_revenue_token1=200.0,
+        curator_fee_rate=0.10,
+    )
+    assert abs(result.token0_fees - 45.0) < 1e-10
+    assert abs(result.token1_fees - 18.0) < 1e-10
+
+
+def test_compute_share_fee_income_zero_shares() -> None:
+    """Zero total shares returns zero fees."""
+    result = compute_share_fee_income(
+        shares_held=100,
+        total_shares=0,
+        pool_fee_revenue_token0=500.0,
+        pool_fee_revenue_token1=200.0,
+        curator_fee_rate=0.10,
+    )
+    assert result.token0_fees == 0.0
+    assert result.token1_fees == 0.0
