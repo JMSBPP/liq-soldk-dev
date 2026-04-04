@@ -161,3 +161,8 @@ function leftRightIlXLiqUnsigned(
         .addToLeftSlot(leftAbs);
 }
 
+
+// what data structure is optimal for tracking positionKeys and its resepctive IL ?
+
+// we need getter per keys, so a calient can query the IL per position, numeration seems not important
+// but since the positionKey is zeroDOout (this is a typing on positions) before calling afterAddLiquidity

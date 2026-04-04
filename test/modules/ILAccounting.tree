@@ -1,0 +1,31 @@
+ILAccountingLib::load
+└── it should return a storage pointer at IL_ACCOUNTING_SLOT.
+
+ILAccountingLib::snapshot
+├── when entrySqrtPriceX96 is zero
+│   └── it should store zero (no revert — caller is responsible for validation).
+└── when entrySqrtPriceX96 is nonzero
+    ├── given the position has no existing snapshot
+    │   ├── it should store entrySqrtPriceX96 at snapshots[id][positionKey].
+    │   └── it should make hasSnapshot return true.
+    └── given the position already has a snapshot
+        └── it should overwrite the existing entrySqrtPriceX96.
+
+ILAccountingLib::getSnapshot
+├── given the position has a snapshot
+│   └── it should return the stored entrySqrtPriceX96.
+└── given the position has no snapshot
+    └── it should return zero.
+
+ILAccountingLib::clear
+├── given the position has a snapshot
+│   ├── it should set snapshots[id][positionKey] to zero.
+│   └── it should make hasSnapshot return false.
+└── given the position has no snapshot
+    └── it should not revert (delete on zero is a no-op).
+
+ILAccountingLib::hasSnapshot
+├── given the position has a nonzero entrySqrtPriceX96
+│   └── it should return true.
+└── given the position has zero entrySqrtPriceX96
+    └── it should return false.

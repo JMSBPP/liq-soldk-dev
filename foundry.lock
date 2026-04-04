@@ -14,6 +14,9 @@
   "lib/algebra-plugins": {
     "rev": "ae0d545a7d75125f2dfd688720bdce31f5694ac8"
   },
+  "lib/angstrom": {
+    "rev": "28029939308750e519a9773ed548a2f111e359c2"
+  },
   "lib/bunni-v2": {
     "rev": "2b303b8c1b9f8afbb169d62ba52da93d6d2171fe"
   },
