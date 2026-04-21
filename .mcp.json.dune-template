@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "dune": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "DUNE_API_KEY",
+        "ghcr.io/metorial/mcp-container--kukapay--dune-analytics-mcp--dune-analytics-mcp",
+        "python",
+        "main.py"
+      ],
+      "env": {
+        "DUNE_API_KEY": "<YOUR_DUNE_API_KEY_HERE>"
+      }
+    }
+  }
+}

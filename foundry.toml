@@ -37,3 +37,16 @@ fs_permissions = [{ access = "read", path = "live/" }]
 arbitrum = "https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 mainnnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+[profile.il]
+src = "src/il-exercises"
+test = "test/il-exercises"
+script = "script/il-exercises"
+out = "out/il"
+libs = ["lib"]
+cache_path = "cache/il"
+
+remappings = [
+	   "@libraries/=src/il-exercises/libraries/",
+	    "forge-std/=lib/forge-std/src/"
+]

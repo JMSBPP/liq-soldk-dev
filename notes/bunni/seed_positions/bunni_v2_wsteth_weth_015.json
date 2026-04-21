@@ -1,0 +1,19 @@
+{
+  "position_id": "bunni_v2_wsteth_weth_015",
+  "architecture": "bunni_v2",
+  "chain_id": 42161,
+  "pool": "0xcf3e20a072e6c74916da3e57086fa0f781ff54de4f060194e19aabf4dd94f55c",
+  "pair": "wstETH/WETH",
+  "depositor": "0xab13ff5fc6cdcffa71042cf3db37243ec3d8fd7f",
+  "deposit_tx": "0x0507f997f3db1ccc24ab89dd86fad57e253a7e31588db1770a5c4d8f91dc649c",
+  "withdraw_tx": "0xb50049e8222993295d608e0c8a531adae5349db7298a874d59c3b657323d3c46",
+  "entry_timestamp": "2025-02-06 11:48:25.000 UTC",
+  "exit_timestamp": "2025-02-11 18:23:48.000 UTC",
+  "entry_wsteth": 1.010951,
+  "entry_weth": 1.058554,
+  "exit_wsteth": 0.235088,
+  "exit_weth": 0.163061,
+  "duration_days": 5,
+  "pnl_weth": -1.803,
+  "notes": "Bunni V2 wstETH/WETH. P&L from rebalancing channel, not swap fees."
+}

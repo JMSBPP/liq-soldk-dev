@@ -167,6 +167,7 @@ User: "I want to sell a put at strike 2000 USDC/ETH, width 10"
    └─ 12. Mint ERC1155 token: SFPM mints tokenId to user as position receipt
 
 `PanopticPool.t.sol:4036-4227`.
+
 When you mint a 2-leg ITM short strangle (short put + short call, both ITM), the protocol correctly executes an internal swap to rebalance the token surplus, deducts commission, and tracks all amounts through the `LeftRightSigned` pipeline.
 
 ```
@@ -187,6 +188,113 @@ When you mint a 2-leg ITM short strangle (short put + short call, both ITM), the
 | **ERC1155** | User holds `tokenId` representing the position | |
 
 
+Question: 
+ How we can leverage bunni-v2 code to build custom adapters (bridges) betwee ALgebra AND  Panoptic
+for bootstrapping liquidty by borrowing
 
 
+# EXERCISES
 
+## STRADDLE -> LPing
+
+
+```
+Helpers {
+     lib/2025-12-panoptic/test/foundry/coreV3/RiskEngine/helpers/PositionFactory.sol,
+     lib/2025-12-panoptic/test/foundry/core/Misc.t.sol::L1777    
+}
+
+Flow {
+    PanopticPool.ITMShortPutShortCall == UniswapV4.addLiquidity
+               |
+               v
+         --> liquidityPosition --> IL(position)
+
+}
+```
+
+### Questions:
+
+(1)  What is the formal definition of a straddle ?
+
+[](../){
+	Straddle(isLong){
+		strike::Strike
+		ratioSpread::optionRatio[2]
+	}
+}
+(2) How it relates or maps to a vanilla CLAMM liquidity position ?
+
+CLAMM{ 
+        amountXOnL = L ( (\sqrt(p_u) - \sqrt(p_l) )/ \sqrt(p_l*p_u))
+                      --- ----------(amountYOnL)-----------------
+
+	    SOLVENCY:: \sqrt(p_l*p_u))* amountXOnL = L ( (\sqrt(p_u) - \sqrt(p_l) )
+}
+
+CoveredCall(isLong) {
+	not(isLong) => p - max(p - k, 0) ==(clamm)=> p - max(p - \sqrt(p_l*p_u), 0)
+}
+
+CashSecuredPut(isLong){
+   not(isLong) => k - max(k-p, 0) == (clamm) => \sqrt(p_l*p_u) - max(\sqrt(p_l*p_u) - p ,0)
+}
+
+
+CLAMM(\sqrt(p_l*p_u), p) - CoveredCall(\sqrt(p_l*p_u), p, expiration*) = RangePayoff([p_l, p_u], p,expiration*)
+                                                                            
+                                                                                        |
+																			[MORE_ON](~/apps/liq-soldk-dev/src/libraries/TickRangeExpirationLib.sol)			
+                                                                       \sqrt(p_u/p_l) --   
+                                                                              |
+																		      |
+												expiration(\sqrt(p_u/p_l))<---			 
+                                                            |
+															|
+							   						-------		
+                   (2\pi/vol^2)(\sqrt(\sqrt(p_u/p_l)) -1 /\sqrt(\sqrt(p_u/p_l)) +1 )^2
+				   
+				                                   |
+												   |
+					sqrt(p_u/p_l) 
+					    (expiration*,expiration) = (1 + vol\sqrt(expiration* - expiration/2\pi )
+					                             (                                               )^2
+												   /(1- vol \sqrt(expiration* - expiration)/2\pi)							   
+                                    
+//--> TEST INVARIANT
+
+---> CALL^{ATM} (\sqrt(p_u*p_l), expiration* - expiration) = PUT^{ATM} (\sqrt(p_u*p_l)) < ----
+
+OPEN QUESTIONS:
+
+(R2Q1)  How `RangePayoff([p_l, p_u], p)` maps to [RANGE_ACCRUAL_NOTES](~/learning/cfmm-theory/lp-derivatives/pap-pricing_range_accrual-msc_thesis.pdf) ?
+
+
+RangePayoff([p_l, p_u], p, optionExpiration*)
+                              
+				|			   |
+				|			   |
+				 \              \ 
+ 				   ------[conversion](~/apps/liq-soldk-dev/src/libraries/TickRangeExpirationLib.sol)
+				                
+                                |
+								-------- > lpExpiration
+                                              
+											  |
+											   \
+	            RangeAccrualNote(coupon ,observationPeriods)		  
+                                   |
+								   | (from the feeRevnue ~ stremia for shorting the straddle)
+								      the LP can decide to sell a range accrual note subject 
+									  to the collateral his premia entails, this can be a primitive
+									  for a standarized [income settle deriuvative on LPs](./INCOME_SETTLEMENT.md))
+								   |
+								   |
+								   
+								   
+								  
+
+(1) -> (3) What is the approach following [this approach](~/learning/cfmm-theory/refs/MLFiPaper.pdf)to define an [`straddleBuilder`](~/apps/liq-soldk-dev/src/interfaces/IStraddleBuilder.sol) interface ?
+
+
+(2) ^ (3) -> How to bridge (3) to other protocols (e.g Panoptic, Algebra (CLAMM), etc) 

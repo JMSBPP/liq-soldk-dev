@@ -1,0 +1,117 @@
+# Tests for Phase -1: Identification
+# Validates that the agent correctly plans context ingestion, Aristotle integration,
+# and the non-negotiable verification-by-different-agent constraint.
+
+- description: "Phase -1: Context ingestion reads project documentation"
+  vars:
+    skill_excerpt: |
+      Phase -1: IDENTIFICATION (Context → Model Candidates → Formal Verification)
+      Step A: Ingest project context. Read all research artifacts, pool inventory,
+      observable→macro mappings, academic literature, composite indices.
+      After reading, produce a Context Summary containing:
+      1. Available observables and their signal strengths per macro variable
+      2. Existing pool infrastructure and liquidity constraints
+      3. Academic precedents for each observable→macro mapping
+      4. Gaps identified in the literature
+    user_request: "I want to study whether CFMM pool funding rates predict currency depreciation in Nigeria"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phase = plan.phases.find(p => p.phase_id === '-1' || p.name.toLowerCase().includes('identification') || p.name.toLowerCase().includes('context'));
+        phase !== undefined;
+      metric: has_identification_phase
+    - type: llm-rubric
+      value: |
+        The execution plan must include a phase that reads project documentation
+        to generate economic questions. It should NOT hardcode specific file paths
+        like refs/macro-risk/ but should describe exploring project docs generically.
+        The phase must produce a context summary with observables, infrastructure,
+        academic precedents, and gaps.
+
+- description: "Phase -1: Aristotle CLI used for mathematical assertions"
+  vars:
+    skill_excerpt: |
+      Step C: Formalize mathematical assertions via Aristotle CLI.
+      For each identification condition:
+      1. Write the mathematical statement as a .md or .lean file
+      2. Run: aristotle formalize <file> --wait --destination <output_dir>
+         OR: aristotle submit "<prompt>" --project-dir <dir> --wait
+      3. Collect Lean 4 proof or failure
+      4. If proof fails → flag for user review, do NOT proceed silently
+      Failure protocol:
+      - COMPLETE → proceed
+      - COMPLETE_WITH_ERRORS → flag, ask user
+      - FAILED or OUT_OF_BUDGET → NOT verified, present failure, do NOT silently skip
+      - NEVER treat an unverified assertion as verified
+    user_request: "Formalize the exclusion restriction that gas costs affect swap volume but not the parallel market premium directly"
+  assert:
+    - type: is-json
+    - type: icontains
+      value: aristotle
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const hasAristotle = phases.some(p =>
+          (p.tools || []).some(t => t.toLowerCase().includes('aristotle')) ||
+          (p.name || '').toLowerCase().includes('aristotle') ||
+          (p.constraints || []).some(c => c.toLowerCase().includes('aristotle'))
+        );
+        hasAristotle;
+      metric: uses_aristotle
+    - type: llm-rubric
+      value: |
+        The plan must include explicit use of the Aristotle CLI for formalizing
+        mathematical assertions into Lean 4 proofs. It must handle failure cases:
+        COMPLETE proceeds, COMPLETE_WITH_ERRORS flags to user, FAILED/OUT_OF_BUDGET
+        stops and reports. It must NEVER silently skip an unverified assertion.
+
+- description: "Phase -1: Verification by DIFFERENT agent (non-negotiable)"
+  vars:
+    skill_excerpt: |
+      THE AGENT THAT PERFORMED IDENTIFICATION MUST NOT VERIFY ITS OWN WORK.
+      After identification (Steps A-C), launch a SEPARATE agent to verify:
+      - Review the identification strategy for logical gaps
+      - Check Aristotle proof outputs for completeness
+      - Verify exclusion restrictions are economically defensible
+      - Produce a verification report with PASS/FAIL per condition
+      If ANY condition FAILS verification → STOP, return to user
+    user_request: "Plan the identification and verification for a model of capital flight from cNGN/USDC pool volume"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const idPhase = phases.find(p =>
+          (p.name || '').toLowerCase().includes('identif')
+        );
+        const verifyPhase = phases.find(p =>
+          (p.name || '').toLowerCase().includes('verif')
+        );
+        if (!idPhase || !verifyPhase) return false;
+        // Different agents
+        return idPhase.agent !== verifyPhase.agent;
+      metric: different_verification_agent
+      weight: 3
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const verifyPhase = phases.find(p =>
+          (p.name || '').toLowerCase().includes('verif')
+        );
+        if (!verifyPhase) return false;
+        const constraints = (verifyPhase.constraints || []).join(' ').toLowerCase();
+        return constraints.includes('different') || constraints.includes('separate') || constraints.includes('not the same');
+      metric: explicit_separation_constraint
+      weight: 2
+    - type: llm-rubric
+      value: |
+        The plan MUST have two distinct phases: identification and verification.
+        The verification phase MUST be assigned to a DIFFERENT agent than the
+        identification phase. This is non-negotiable. The verification agent
+        must produce PASS/FAIL per condition, and if ANY fails, the pipeline stops.
+      weight: 3

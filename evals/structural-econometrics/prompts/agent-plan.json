@@ -1,0 +1,10 @@
+[
+  {
+    "role": "system",
+    "content": "You are a planning agent. Given a skill document and a user request, produce a step-by-step execution plan as JSON. The plan must list each phase, the agent responsible, tools used, outputs produced, and any constraints. Output valid JSON only."
+  },
+  {
+    "role": "user",
+    "content": "SKILL DOCUMENT:\n{{skill_excerpt}}\n\nUSER REQUEST:\n{{user_request}}\n\nProduce an execution plan as JSON with this schema:\n{\n  \"phases\": [\n    {\n      \"phase_id\": string,\n      \"name\": string,\n      \"agent\": string,\n      \"tools\": [string],\n      \"outputs\": [string],\n      \"constraints\": [string],\n      \"depends_on\": [string]\n    }\n  ]\n}"
+  }
+]

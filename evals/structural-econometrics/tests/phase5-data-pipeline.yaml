@@ -1,0 +1,115 @@
+# Tests for Phase 5: Data Pipeline
+# Validates mandatory Dune MCP usage, sequential execution, and output structure.
+
+- description: "Phase 5a: Data Engineer MUST use Dune MCP exclusively"
+  vars:
+    skill_excerpt: |
+      Phase 5: DATA PIPELINE (Sequential: Data Engineer → Analytics Reporter)
+      Step A: Data Engineer agent (MANDATORY: Dune MCP)
+      Uses mcp__dune__* tools exclusively for on-chain data:
+        - mcp__dune__searchTables → find relevant tables
+        - mcp__dune__createDuneQuery → build SQL queries
+        - mcp__dune__executeQueryById → run queries
+        - mcp__dune__getExecutionResults → retrieve data
+      Produces: validated datasets, query IDs, data dictionaries
+    user_request: "Collect on-chain data for cKES/USDT swap volume on Celo Uniswap v3 pools over the past 6 months"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const dataPhase = phases.find(p =>
+          (p.name || '').toLowerCase().includes('data engineer') ||
+          (p.agent || '').toLowerCase().includes('data engineer')
+        );
+        if (!dataPhase) return false;
+        const tools = (dataPhase.tools || []).map(t => t.toLowerCase());
+        return tools.some(t => t.includes('dune') || t.includes('mcp__dune'));
+      metric: data_engineer_uses_dune
+      weight: 3
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const dataPhase = phases.find(p =>
+          (p.agent || '').toLowerCase().includes('data engineer')
+        );
+        if (!dataPhase) return false;
+        const outputs = (dataPhase.outputs || []).join(' ').toLowerCase();
+        return outputs.includes('query') || outputs.includes('dataset') || outputs.includes('data dictionary');
+      metric: data_engineer_outputs_correct
+    - type: llm-rubric
+      value: |
+        The Data Engineer phase must use Dune MCP tools (mcp__dune__*) as its
+        MANDATORY data source. It should produce query IDs, validated datasets,
+        and a data dictionary. No alternative data sources should replace Dune.
+
+- description: "Phase 5: Sequential execution — Analytics Reporter waits for Data Engineer"
+  vars:
+    skill_excerpt: |
+      Phase 5: DATA PIPELINE (Sequential: Data Engineer → Analytics Reporter)
+      Step A: Data Engineer agent (MANDATORY: Dune MCP)
+      Step B: Analytics Reporter agent (consumes Data Engineer output)
+      Reads Data Engineer's validated datasets, runs estimation per spec,
+      produces coefficient estimates, specification test results, sensitivity analysis.
+      Non-negotiable: Phase 5b→5c is sequential.
+    user_request: "Run the full data pipeline for the currency crisis model on Nigerian stablecoin pools"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const dataIdx = phases.findIndex(p =>
+          (p.agent || '').toLowerCase().includes('data engineer') ||
+          (p.name || '').toLowerCase().includes('data engineer')
+        );
+        const analyticsIdx = phases.findIndex(p =>
+          (p.agent || '').toLowerCase().includes('analytics') ||
+          (p.name || '').toLowerCase().includes('analytics')
+        );
+        if (dataIdx === -1 || analyticsIdx === -1) return false;
+        // Analytics must come after Data Engineer
+        if (analyticsIdx <= dataIdx) return false;
+        // Analytics must depend on Data Engineer
+        const analyticsDeps = (phases[analyticsIdx].depends_on || []).map(d => d.toLowerCase());
+        const dataId = (phases[dataIdx].phase_id || '').toLowerCase();
+        return analyticsDeps.includes(dataId) || analyticsDeps.some(d => d.includes('data'));
+      metric: sequential_execution
+      weight: 3
+    - type: llm-rubric
+      value: |
+        The Analytics Reporter phase must be sequential AFTER the Data Engineer
+        phase. Analytics Reporter must explicitly depend on Data Engineer output.
+        They must NOT run in parallel. The Analytics Reporter consumes validated
+        datasets produced by the Data Engineer.
+
+- description: "Phase 5b: Analytics Reporter produces required outputs"
+  vars:
+    skill_excerpt: |
+      Step B: Analytics Reporter agent (consumes Data Engineer output)
+      Reads Data Engineer's validated datasets
+      Runs estimation per the spec from Phase 4
+      Produces: coefficient estimates, specification test results,
+                sensitivity analysis, visualizations
+    user_request: "Estimate the structural model for remittance flow impact on cKES/cUSD fee yield"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const analytics = phases.find(p =>
+          (p.agent || '').toLowerCase().includes('analytics') ||
+          (p.name || '').toLowerCase().includes('analytics')
+        );
+        if (!analytics) return false;
+        const outputs = (analytics.outputs || []).join(' ').toLowerCase();
+        return outputs.includes('estimate') && outputs.includes('test');
+      metric: analytics_outputs_complete
+    - type: llm-rubric
+      value: |
+        The Analytics Reporter must produce: coefficient estimates with standard
+        errors, specification test results, sensitivity analysis across alternative
+        specs, and a summary. All outputs derived from the econometric spec.

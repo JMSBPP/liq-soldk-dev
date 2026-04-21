@@ -20,6 +20,12 @@
   "lib/bunni-v2": {
     "rev": "2b303b8c1b9f8afbb169d62ba52da93d6d2171fe"
   },
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.15.0",
+      "rev": "0844d7e1fc5e60d77b68e469bff60265f236c398"
+    }
+  },
   "lib/numoen": {
     "tag": {
       "name": "v1.0.0",
@@ -29,11 +35,20 @@
   "lib/risk-neutral-hook": {
     "rev": "9a897c19a0e99c91fd122b47ea9ca68a520c2755"
   },
+  "lib/solidity-trigonometry": {
+    "rev": "58af3a912ab3e2203cf21189012caefe24471e29"
+  },
   "lib/tempest": {
     "rev": "3e57c9a531af2549fbdbe63e7c0182730121a0c9"
   },
   "lib/typed-uniswap-v4": {
     "rev": "1fc9f59768992c50e6f494d4ae21efec0d190bc4"
+  },
+  "lib/v3-periphery": {
+    "tag": {
+      "name": "v1.3.0",
+      "rev": "80f26c86c57b8a5e4b913f42844d4c8bd274d058"
+    }
   },
   "lib/valorem-oracles": {
     "rev": "2ea81fedd13a2e415c599323bba35d4f5706efa5"

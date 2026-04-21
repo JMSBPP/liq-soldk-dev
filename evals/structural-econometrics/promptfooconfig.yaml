@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+#
+# Structural Econometrics Skill Eval Suite
+# Tests Phase -1 (Identification + Aristotle + Verification Agent)
+# and Phase 5 (Data Engineer with Dune MCP + Analytics Reporter)
+
+description: "Structural Econometrics Skill - Phase -1 and Phase 5 compliance"
+
+prompts:
+  - file://prompts/agent-plan.json
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      temperature: 0
+      max_tokens: 4096
+      response_format:
+        type: json_object
+
+defaultTest:
+  options:
+    provider: anthropic:messages:claude-sonnet-4-6
+  assert:
+    # All outputs must be valid JSON
+    - type: is-json
+    # Cost guard: each test should cost under $0.10
+    - type: cost
+      threshold: 0.10
+
+tests:
+  - file://tests/phase-neg1-identification.yaml
+  - file://tests/phase5-data-pipeline.yaml
+  - file://tests/end-to-end.yaml

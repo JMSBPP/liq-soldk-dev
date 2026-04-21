@@ -9,7 +9,7 @@ Extracted from 6 papers in the `cfmm-theory` repo. Every scenario below is eithe
 **Source**: Hookathon Primer, Section 2.1.1 & 4.1
 
 ### Scenario 1A: Alice's ETH/DAI Position (Price Doubles)
-- **Setup**: Pool has 10 ETH + 1000 DAI. Alice owns 10% (1 ETH + 100 DAI). `k = 10000`, `P0 = 100 DAI/ETH`.
+ - **Setup**: Pool has 10 ETH + 1000 DAI. Alice owns 10% (1 ETH + 100 DAI). `k = 10000`, `P0 = 100 DAI/ETH`.
 - **Price move**: ETH price rises to `P1 = 200 DAI/ETH` (alpha = 2.0).
 - **Pool state**: `x1 = sqrt(10000/200) = 7.07 ETH`, `y1 = sqrt(10000*200) = 1414.21 DAI`.
 - **Alice's share**: `0.707 ETH * 200 + 141.421 DAI = 282.82 DAI`.

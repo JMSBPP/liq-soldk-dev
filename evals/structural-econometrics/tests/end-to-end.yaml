@@ -1,0 +1,96 @@
+# End-to-end pipeline tests
+# Validates full pipeline ordering and constraint enforcement.
+
+- description: "Full pipeline: correct phase ordering (-1 → 0-4 → 5)"
+  vars:
+    skill_excerpt: |
+      Phase -1: IDENTIFICATION (Context → Model Candidates → Formal Verification)
+      Phase 0-4: SPECIFICATION (Existing Reiss-Wolak interactive pipeline)
+      Phase 5: DATA PIPELINE (Sequential: Data Engineer → Analytics Reporter)
+      Non-negotiable constraints:
+      1. Phase -1 verification MUST be a DIFFERENT agent than identification
+      2. Phase 5b Data Engineer MUST use Dune MCP for all on-chain data
+      3. Phase 5b→5c is sequential
+    user_request: "Plan the complete structural econometrics pipeline for studying how CFMM adaptive fees on Algebra pools proxy monetary policy divergence between Nigeria and the US"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const names = phases.map(p => (p.name || '').toLowerCase());
+        const hasId = names.some(n => n.includes('identif'));
+        const hasSpec = names.some(n => n.includes('spec') || n.includes('research question') || n.includes('economic model'));
+        const hasData = names.some(n => n.includes('data engineer'));
+        const hasAnalytics = names.some(n => n.includes('analytics'));
+        return hasId && hasSpec && hasData && hasAnalytics;
+      metric: all_phases_present
+      weight: 2
+    - type: javascript
+      value: |
+        const plan = JSON.parse(output);
+        const phases = plan.phases || [];
+        const names = phases.map(p => (p.name || '').toLowerCase());
+        const idIdx = names.findIndex(n => n.includes('identif'));
+        const specIdx = names.findIndex(n => n.includes('spec') || n.includes('research question') || n.includes('economic model'));
+        const dataIdx = names.findIndex(n => n.includes('data engineer'));
+        const analyticsIdx = names.findIndex(n => n.includes('analytics'));
+        // Correct ordering: identification < spec < data < analytics
+        return idIdx < specIdx && specIdx < dataIdx && dataIdx < analyticsIdx;
+      metric: correct_phase_ordering
+      weight: 3
+    - type: llm-rubric
+      value: |
+        The complete pipeline must have this ordering:
+        1. Identification (with Aristotle + separate verification agent)
+        2. Specification (Reiss-Wolak Phases 0-4 with 19 AskUserQuestion calls)
+        3. Data Engineer (Dune MCP mandatory)
+        4. Analytics Reporter (sequential after Data Engineer)
+        All three non-negotiable constraints must be visible in the plan.
+      weight: 2
+
+- description: "Pipeline does NOT hardcode refs/macro-risk/ paths"
+  vars:
+    skill_excerpt: |
+      Phase -1: IDENTIFICATION
+      Step A: Ingest project context. Read project research artifacts, pool inventory,
+      observable→macro mappings, academic literature, composite indices.
+      The context sources are project documentation that yields economic questions.
+    user_request: "Plan identification for a model studying LP fee yield as interest rate proxy on Balancer pools"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const text = output.toLowerCase();
+        // Should NOT contain hardcoded refs/macro-risk/ as mandatory path
+        const hardcoded = text.includes('refs/macro-risk/synthesis') || text.includes('refs/macro-risk/academic');
+        return !hardcoded;
+      metric: no_hardcoded_paths
+    - type: llm-rubric
+      value: |
+        The plan should describe reading project documentation generically to
+        discover economic questions — NOT hardcode specific paths like
+        refs/macro-risk/synthesis-pair-primitive-macro-matrix.md. The context
+        ingestion should be adaptable to any project structure.
+
+- description: "Skill enforces 19 minimum AskUserQuestion calls in spec phases"
+  vars:
+    skill_excerpt: |
+      Phase 0: Research Question (3 questions: economic question, unit of observation, outcome variable)
+      Phase 1: Economic Model (7 questions: environment, actors, information, primitives, exogenous, objectives, equilibrium)
+      Phase 2: Stochastic Model (3 questions: unobserved heterogeneity, agent uncertainty, measurement error)
+      Phase 3: Estimation Strategy (4 questions: functional forms, distributions, review equation, specification tests)
+      Phase 4: Sensitivity Analysis (2 questions: sensitive assumptions, alternative specifications)
+      THE IRON LAW: NO SPECIFICATION COMPONENT WITHOUT AN ASKUSERQUESTION FIRST
+      Minimum AskUserQuestion calls for a complete specification: 19
+    user_request: "Plan the specification phases for a model of remittance flow impact on cNGN/USDC liquidity"
+  assert:
+    - type: is-json
+    - type: llm-rubric
+      value: |
+        The plan for specification phases must indicate at least 19 interactive
+        questions to the user. No specification component should be decided
+        autonomously. Each of the 5 specification phases (0-4) must show its
+        required question count: Phase 0 = 3, Phase 1 = 7, Phase 2 = 3,
+        Phase 3 = 4, Phase 4 = 2. Total = 19 minimum.
+      weight: 2

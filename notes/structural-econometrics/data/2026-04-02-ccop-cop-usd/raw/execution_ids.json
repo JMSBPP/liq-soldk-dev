@@ -1,0 +1,62 @@
+{
+  "queries": {
+    "filter_addresses_v1_broken": {
+      "query_id": 6941886,
+      "url": "https://dune.com/queries/6941886",
+      "status": "FAILED",
+      "note": "Used 'symbol' instead of 'token_symbol'. Superseded by v2."
+    },
+    "daily_aggregation_v1_broken": {
+      "query_id": 6941889,
+      "url": "https://dune.com/queries/6941889",
+      "status": "FAILED",
+      "note": "Used 'symbol' instead of 'token_symbol'. Superseded by v2."
+    },
+    "filter_addresses_v2": {
+      "query_id": 6941892,
+      "url": "https://dune.com/queries/6941892",
+      "status": "COMPLETED",
+      "execution_id": "01KN7SK8Y4C2K997QXN173CC6T",
+      "total_rows": 100,
+      "cost_credits": 7.866,
+      "note": "All 100 addresses are thursday_ubi. Zero bots and zero campaign addresses found in this filter-only query."
+    },
+    "daily_aggregation_v3": {
+      "query_id": 6941901,
+      "url": "https://dune.com/queries/6941901",
+      "status": "COMPLETED",
+      "execution_id": "01KN7SPR5JA3RCBTPVYJ1D29Q5",
+      "total_rows": "~499 (paginated, last row at offset 498 = 2026-04-01)",
+      "cost_credits": 7.09,
+      "note": "Single-pass design with INNER JOIN. Covers Oct 31 2024 - Apr 1 2026."
+    },
+    "diagnostic_token_symbols": {
+      "query_id": 6941902,
+      "url": "https://dune.com/queries/6941902",
+      "status": "COMPLETED",
+      "execution_id": "01KN7SR1HJKTN2VA3ZWVAWFMZ2",
+      "note": "Token symbols: cCOP (227536 txns), COPM (104830 txns), COPm (55222 txns)"
+    },
+    "diagnostic_filter_impact": {
+      "query_id": 6941903,
+      "url": "https://dune.com/queries/6941903",
+      "status": "COMPLETED",
+      "execution_id": "01KN7SS42C7Z358BQ3ZW13RHFN",
+      "note": "4990 total addresses: 588 thursday_ubi, 26 bots, 3563 campaign, 1310 clean"
+    },
+    "diagnostic_campaign_days": {
+      "query_id": 6941906,
+      "url": "https://dune.com/queries/6941906",
+      "status": "COMPLETED",
+      "execution_id": "01KN7STCRQJR9KYEDYZ3M7X985",
+      "note": "6 campaign days: 2025-02-19 (77), 2025-05-23 (60), 2025-07-30 (509), 2025-07-31 (1931), 2025-08-13 (192), 2025-08-14 (794)"
+    }
+  },
+  "primary_query": {
+    "query_id": 6941901,
+    "url": "https://dune.com/queries/6941901",
+    "execution_id": "01KN7SPR5JA3RCBTPVYJ1D29Q5"
+  },
+  "created_at": "2026-04-02",
+  "total_dune_credits_used": 25.3
+}

@@ -1,0 +1,20 @@
+{
+  "q1_pool_hourly": {
+    "query_id": 6937696,
+    "execution_id": "01KN5G604HTFP8P6N5Q0WWS6KP",
+    "url": "https://dune.com/queries/6937696",
+    "expected_rows": 2156
+  },
+  "q2_polygon_dex_vol": {
+    "query_id": 6937702,
+    "execution_id": "01KN5G60GEABGFBXW8G2B0JA4J",
+    "url": "https://dune.com/queries/6937702",
+    "expected_rows": 2156
+  },
+  "q3_eth_price": {
+    "query_id": 6937699,
+    "execution_id": "01KN5G60SV3W2DXMQGQHQ2GWN5",
+    "url": "https://dune.com/queries/6937699",
+    "expected_rows": 2018
+  }
+}

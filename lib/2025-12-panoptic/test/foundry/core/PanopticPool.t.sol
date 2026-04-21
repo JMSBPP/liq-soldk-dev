@@ -4045,10 +4045,11 @@ contract PanopticPoolTest is PositionUtils {
 
 	//   --| ---------------|-----------------|
 	//     il               ik                iu
-                                |
-	//     |--width---------|-----------------|
-	            |           v	
-                    v
+	//                                |
+	//
+	    //   |--width---------|-----------------|
+	    //	            |           v	
+	    //      v
 	  (int24 width0, int24 strike0) = PositionUtils.getITMSW(
             widthSeeds[0],
             strikeSeeds[0],
